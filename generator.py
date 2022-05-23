@@ -1,4 +1,4 @@
-VERSION = '0.2'
+VERSION = '0.3'
 
 from rich.console import Console
 import sys, os
@@ -129,7 +129,7 @@ if __name__ == "__main__":
                 console.print(f'[red]{value:>12}: Critical Error - {e}[/]')
                 continue
 
-    kmlFile.save('slope.kml')
+    kmlFile.save('output.kml')
     console.print(f'[chartreuse3]KML successfully generated to [bold]slope.kml[/].[/]')
 
     input(f'Press any key to exit...')

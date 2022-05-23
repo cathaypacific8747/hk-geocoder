@@ -1,11 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
+VERSION='0.3'
 block_cipher = None
 
-
 a = Analysis(
-    ['slope.py'],
+    ['generator.py'],
     pathex=[],
     binaries=[],
     datas=[
@@ -31,7 +30,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='slope',
+    name=f'hk-geocoder-v{VERSION}',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
