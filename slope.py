@@ -1,74 +1,90 @@
-VERSION = '0.1.1'
-print(f'Slope to KML V{VERSION}\n')
+VERSION = '0.2'
 
 import sys, os
 import shutil
 import json
-from webbrowser import get
 import pandas as pd
-from shapely.geometry import Point, Polygon
-from rich import print
-import warnings
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore")
-    from fastkml import kml, styles # ignore missing lxml
+from styleframe import StyleFrame
+import numpy as np
+from rich.console import Console
+import kml
+
+console = Console()
+
+console.print(f'[light_cyan1 bold]Slope to KML v{VERSION}[/]', highlight=False)
+console.print(f'[grey50]Source Code: https://www.github.com/cathaypacific8747/hk-slope-kml[/]')
+console.print(f'[grey50]License: MIT[/]\n')
 
 app_path = sys._MEIPASS if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
 
-def generateFilter():
-    shutil.copy2(os.path.join(app_path, 'slope_filter.csv'), 'slope_filter.csv')
-
 if __name__ == "__main__":
-    k = kml.KML()
-    d = kml.Document()
+    if not os.path.isfile('filter.xlsx'):
+        shutil.copy2(os.path.join(app_path, 'filter.xlsx'), 'filter.xlsx')
+        console.print(f'        INFO: A new filter file is created in the current directory.')
+        console.print(f'              Please edit it and run this program again.')
+        sys.exit(0)
 
-    print(f'Loading styles...')
-    with open(os.path.join(app_path, 'styles.json'), 'r') as fil:
-        styleDict = json.load(fil)
-        for sk, sv in styleDict.items():
-            d.append_style(styles.Style(styles=[styles.IconStyle(color=sv['iconColour'])], id=f'i{sk}'))
-            d.append_style(styles.Style(styles=[styles.LineStyle(color=sv['shapeColour'])], id=f's{sk}'))
-
-    print(f'Loading slope database...')
+    kmlFile = kml.KML()
+    def transform(cell):
+        col = cell.style.column
+        argb = str(cell.style.fill.fgColor.rgb)
+        if col == 8: # batchNum, return nan if nan
+            return np.nan if pd.isna(cell.value) else str(cell.value)
+        elif col == 9: # iconColour
+            return f'ff{argb[6:8]}{argb[4:6]}{argb[2:4]}'
+        elif col == 10: # shapeColour
+            return f'aa{argb[6:8]}{argb[4:6]}{argb[2:4]}'
+        return cell
+    
+    console.print(f'        INFO: Loading slope database...')
     with open(os.path.join(app_path, 'slopes.json'), 'r') as fil:
         slopes = json.load(fil)
 
-    try:
-        print(f'Loading filters from [bold]slope_filter.csv[/]...')
-        filter = pd.read_csv('slope_filter.csv') # id, slopenum, description, category
-        print(f'[green]loaded {len(filter)} filters[/]')
-    except FileNotFoundError:
-        print(f'[yellow][bold]slope_filter.csv[/] was not found, please edit and try again.[/]')
-        generateFilter()
-    except Exception:
-        print(f'[red][bold]slope_filter.csv[/] contains errors, please edit and try again.[/]')
-        generateFilter()
-    else:
-        for _, f in filter.iterrows():
-            refnum, slopenum, description, batchnum = f.refnum, str(f.slopenum).replace(" ", ""), f.description, f.batchnum if f.batchnum else 0
-            if slopenum not in slopes:
-                print(f'[red]✕ {slopenum} not found![/]')
+    console.print(f'        INFO: Reading filter.xlsx...')
+    df = StyleFrame.read_excel(
+        path='filter.xlsx',
+        read_style=True,
+        use_openpyxl_styles=True,
+    ).applymap(transform)
+    
+    console.print(f'        INFO: Adding icon and shape styles...')
+    s_df = df.iloc[2:, [7,8,9]].dropna()
+    s_df.columns = ['batchNum', 'iconColour', 'shapeColour']
+    validBatchNums = list(s_df.batchNum)
+    for i, row in s_df.iterrows():
+        batchNum, iconColour, shapeColour = row
+        kmlFile.addStyle('icon', f'i{batchNum}', iconColour)
+        kmlFile.addStyle('shape', f's{batchNum}', shapeColour)
+
+    console.print(f'        INFO: Adding entries...')
+    m_df = df.iloc[2:, 1:6].dropna()
+    m_df.columns = ['refNum', 'value', 'vtype', 'description', 'batchNum']
+
+    for _, f in m_df.iterrows():
+        refnum = str(f.refNum)
+        value = str(f.value).replace(' ', '')
+        vtype = str(f.vtype)
+        description = str(f.description)
+        batchNum = str(f.batchNum) if str(f.batchNum) in validBatchNums else '0'
+
+        if vtype == 'slopeno':
+            if value not in slopes:
+                console.print(f'[red]{value:>12}: Not found.[/]')
                 continue
             try:
-                poly = Polygon(slopes[slopenum])
-                cntr = list(poly.centroid.coords)[0]
-
-                pmpoly = kml.Placemark(name=f'{refnum} | {slopenum} | {description}', description=f'Batch {batchnum}', styleUrl=f"#s{batchnum}")
-                pmpoly.geometry = kml.Geometry(geometry=poly)
-                d.append(pmpoly)
-
-                pmpoint = kml.Placemark(name=f'{refnum} | {slopenum} | {description}', description=f'Batch {batchnum}', styleUrl=f"#i{batchnum}")
-                pmpoint.geometry = Point(cntr[0], cntr[1])
-                d.append(pmpoint)
-
-                print(f'[green]✓ {slopenum}: added to kml[/]')
+                kmlFile.addEntry(
+                    polyCoords=slopes[value],
+                    header=f'{refnum} | {value} | {description}',
+                    batchNum=batchNum,
+                )
+                console.print(f'[chartreuse3]{value:>12}: Done[/]')
             except Exception as e:
-                print(f'[red]✕ {slopenum}: {e}[/]')
+                console.print(f'[red]{value:>12}: Critical Error - {e}[/]')
+        else:
+            console.print(f'[yellow]{value:>12}: Search by lotno will be implemented in future versions.[/]')
 
-        k.append(d)
-        with open('slope.kml', 'w', encoding='utf-8') as fil:
-            fil.write(k.to_string().replace('kml:', ''))
+    kmlFile.save('slope.kml')
+    console.print(f'[chartreuse3]KML successfully generated to [bold]slope.kml[/].[/]')
 
-        print(f'[green]kml written to [bold]slope.kml[/]![/]')
-    finally:
-        input(f'Press any key to exit...')
+    input(f'Press any key to exit...')
+    sys.exit(0)

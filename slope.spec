@@ -10,7 +10,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('*.json', '.'),
-        ('*.csv', '.')
+        ('*.xlsx', '.')
     ],
     hiddenimports=[],
     hookspath=[],
