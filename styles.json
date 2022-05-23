@@ -1,0 +1,22 @@
+{
+    "0": {
+        "iconColour": "#ffffffff",
+        "shapeColour": "#aa666666"
+    },
+    "1": {
+        "iconColour": "#ff1427a5",
+        "shapeColour": "#aa1427a5"
+    },
+    "2": {
+        "iconColour": "#ffd18802",
+        "shapeColour": "#aad18802"
+    },
+    "3": {
+        "iconColour": "#ff25a8f9",
+        "shapeColour": "#aa25a8f9"
+    },
+    "4": {
+        "iconColour": "#ff00eaff",
+        "shapeColour": "#aa00eaff"
+    }
+}
