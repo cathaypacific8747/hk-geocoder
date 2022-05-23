@@ -1,14 +1,19 @@
 VERSION = '0.2'
 
+from rich.console import Console
 import sys, os
 import shutil
 import json
 import pandas as pd
 from styleframe import StyleFrame
 import numpy as np
-from rich.console import Console
 import kml
+import requests
+import base64
+import urllib
+import warnings
 
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
 console = Console()
 
 console.print(f'[light_cyan1 bold]Slope to KML v{VERSION}[/]', highlight=False)
@@ -62,12 +67,13 @@ if __name__ == "__main__":
 
     for _, f in m_df.iterrows():
         refnum = str(f.refNum)
-        value = str(f.value).replace(' ', '')
+        value = str(f.value)
         vtype = str(f.vtype)
         description = str(f.description)
         batchNum = str(f.batchNum) if str(f.batchNum) in validBatchNums else '0'
 
         if vtype == 'slopeno':
+            value = value.replace(' ', '')
             if value not in slopes:
                 console.print(f'[red]{value:>12}: Not found.[/]')
                 continue
@@ -80,8 +86,48 @@ if __name__ == "__main__":
                 console.print(f'[chartreuse3]{value:>12}: Done[/]')
             except Exception as e:
                 console.print(f'[red]{value:>12}: Critical Error - {e}[/]')
-        else:
-            console.print(f'[yellow]{value:>12}: Search by lotno will be implemented in future versions.[/]')
+        else: # lotno
+            try:
+                key = base64.b64decode(b'ZGQ5NzA3OTk5MTlmNDlmMzkyOWVhNmIyYjVkNDdjZjU=').decode('ascii')
+                reqHeaders = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.67 Safari/537.36",
+                    "Accept": "application/json",
+                    "Accept-Language": "en-US,en;q=0.5",
+                    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                    "Sec-Fetch-Dest": "empty",
+                    "Sec-Fetch-Mode": "cors",
+                    "Sec-Fetch-Site": "same-site",
+                    "Pragma": "no-cache",
+                    "Cache-Control": "no-cache",
+                    "referer": "https://www.hkmapservice.gov.hk/",
+                }
+                r = requests.post(
+                    f"https://api.hkmapservice.gov.hk/oss/services/MapAPI/Lot/GeocodeServer/findAddressCandidates?key={key}",
+                    headers=reqHeaders,
+                    data=f"SingleLine={urllib.parse.quote(value)}&key={key}&f=json&outFields=*"
+                ).json()
+
+                if not len(r['candidates']):
+                    console.print(f'[red]{value:>12}: Not found.[/]')
+                    continue
+                else:
+                    confidence = r['candidates'][0]['score']
+                    r1 = requests.get(
+                        f"https://api.hkmapservice.gov.hk/oss/services/OneStop/LPD/MapServer/1/query?key={key}&f=json&where=lotid%20=%20{r['candidates'][0]['attributes']['Ref_ID']}&returnGeometry=true&outSR=4326",
+                        headers=reqHeaders
+                    ).json()
+                    kmlFile.addEntry(
+                        polyCoords=r1['features'][0]['geometry']['rings'][0],
+                        header=f'{refnum} | {value} | {description}',
+                        batchNum=batchNum,
+                    )
+                    console.print(f'[chartreuse3]{value:>12}: Done with confidence {confidence}%[/]')
+            except requests.exceptions.ConnectionError:
+                console.print(f'[red]{value:>12}: Connection Error[/]')
+                continue
+            except Exception as e:
+                console.print(f'[red]{value:>12}: Critical Error - {e}[/]')
+                continue
 
     kmlFile.save('slope.kml')
     console.print(f'[chartreuse3]KML successfully generated to [bold]slope.kml[/].[/]')
