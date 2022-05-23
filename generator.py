@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 console = Console()
 
 console.print(f'[light_cyan1 bold]Slope to KML v{VERSION}[/]', highlight=False)
-console.print(f'[grey50]Source Code: https://www.github.com/cathaypacific8747/hk-slope-kml[/]')
+console.print(f'[grey50]Source Code: https://www.github.com/cathaypacific8747/hk-geocoder[/]')
 console.print(f'[grey50]License: MIT[/]\n')
 
 app_path = sys._MEIPASS if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
@@ -27,6 +27,7 @@ if __name__ == "__main__":
         shutil.copy2(os.path.join(app_path, 'filter.xlsx'), 'filter.xlsx')
         console.print(f'        INFO: A new filter file is created in the current directory.')
         console.print(f'              Please edit it and run this program again.')
+        input(f'Press any key to exit...')
         sys.exit(0)
 
     kmlFile = kml.KML()
