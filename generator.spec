@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-VERSION='0.3'
+VERSION='0.3.1'
 block_cipher = None
 
 a = Analysis(

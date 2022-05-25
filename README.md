@@ -18,8 +18,9 @@ Data source: [SIS](https://hkss.cedd.gov.hk/hkss/en/facts-and-figures/slope-info
 
 ## For development or for Mac/Linux users:
 ```
-$ pip3 install -r requirements.txt
-$ python3 generator.py
-$ pyinstaller generator.spec
+$ pip3 install pipenv
+$ pipenv install
+$ pipenv run python3 generator.py
+$ pipenv run pyinstaller generator.spec
 ```
 Executable will be generated under `dist/hk-geocoder-vX.X.exe`

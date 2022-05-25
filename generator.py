@@ -1,4 +1,4 @@
-VERSION = '0.3'
+VERSION = '0.3.1'
 
 from rich.console import Console
 import sys, os
@@ -16,7 +16,7 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 console = Console()
 
-console.print(f'[light_cyan1 bold]Slope to KML v{VERSION}[/]', highlight=False)
+console.print(f'[light_cyan1 bold]HK Geocoder v{VERSION}[/]', highlight=False)
 console.print(f'[grey50]Source Code: https://www.github.com/cathaypacific8747/hk-geocoder[/]')
 console.print(f'[grey50]License: MIT[/]\n')
 
@@ -34,7 +34,9 @@ if __name__ == "__main__":
     def transform(cell):
         col = cell.style.column
         argb = str(cell.style.fill.fgColor.rgb)
-        if col == 8: # batchNum, return nan if nan
+        if col >= 1 and col <= 6:
+            return '' if pd.isna(cell.value) else str(cell.value)
+        elif col == 8: # batchNum, return nan if nan
             return np.nan if pd.isna(cell.value) else str(cell.value)
         elif col == 9: # iconColour
             return f'ff{argb[6:8]}{argb[4:6]}{argb[2:4]}'
@@ -67,11 +69,9 @@ if __name__ == "__main__":
     m_df.columns = ['refNum', 'value', 'vtype', 'description', 'batchNum']
 
     for _, f in m_df.iterrows():
-        refnum = str(f.refNum)
-        value = str(f.value)
-        vtype = str(f.vtype)
-        description = str(f.description)
-        batchNum = str(f.batchNum) if str(f.batchNum) in validBatchNums else '0'
+        refnum, value, vtype, description, batchNum = f
+        batchNum = batchNum if batchNum in validBatchNums else '0'
+        kmlHeader = ' | '.join(i for i in [refnum, value, description] if i != '')
 
         if vtype == 'slopeno':
             value = value.replace(' ', '')
@@ -81,7 +81,7 @@ if __name__ == "__main__":
             try:
                 kmlFile.addEntry(
                     polyCoords=slopes[value],
-                    header=f'{refnum} | {value} | {description}',
+                    header=kmlHeader,
                     batchNum=batchNum,
                 )
                 console.print(f'[chartreuse3]{value:>12}: Done[/]')
@@ -119,7 +119,7 @@ if __name__ == "__main__":
                     ).json()
                     kmlFile.addEntry(
                         polyCoords=r1['features'][0]['geometry']['rings'][0],
-                        header=f'{refnum} | {value} | {description}',
+                        header=kmlHeader,
                         batchNum=batchNum,
                     )
                     console.print(f'[chartreuse3]{value:>12}: Done with confidence {confidence}%[/]')
